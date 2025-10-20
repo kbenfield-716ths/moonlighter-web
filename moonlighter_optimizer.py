@@ -196,7 +196,7 @@ def run_from_csv(csv_path: str, night_slots: int = 1, strategy: str = "balanced"
             # Retry with forgiving parser (handles extra commas, bad quotes)
             with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read().replace(", ", "; ")  # prevent comma splitting in names
-            df = pd.read_csv(io.StringIO(text), engine="python", sep=",", on_bad_lines="skip")
+            df = pd.read_csv(io.StringIO(text), engine="python", sep=",", on_bad_lines="skip", encoding='utf-8-sig')
         except Exception as e:
             raise ValueError(f"Unable to parse the uploaded CSV file. Please check formatting.\n\n{e}")
 
