@@ -104,3 +104,33 @@ canvas {
   white-space: pre-wrap;
   font-family: monospace;
 }
+.calendar {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1.5em;
+}
+
+.calendar th, .calendar td {
+  border: 1px solid #ccc;
+  width: 14.28%;
+  vertical-align: top;
+  text-align: left;
+  height: 100px;
+  padding: 4px;
+}
+
+.calendar th {
+  background-color: #f0f4ff;
+  text-align: center;
+  font-weight: 600;
+}
+
+.day-content {
+  font-size: 0.85em;
+}
+
+.day-content strong {
+  display: block;
+  color: #2563eb;
+  margin-bottom: 4px;
+}
