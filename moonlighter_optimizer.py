@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Dict, List, Set, Tuple
 from collections import defaultdict, Counter
+import io
 import pandas as pd
 
 # How many people are required per night (1 by default)
@@ -182,7 +183,27 @@ class MoonlighterScheduleOptimizer:
         }
 
 # Convenience function to support Pyodide/web or CLI code
-def run_from_csv(csv_path: str, night_slots: int = NIGHT_SLOTS, strategy: str = "balanced") -> Dict:
-    df = pd.read_csv(csv_path)
+import io
+import pandas as pd
+
+def run_from_csv(csv_path: str, night_slots: int = 1, strategy: str = "balanced") -> dict:
+    """Read and process the input CSV file safely."""
+    try:
+        # Try reading normally first
+        df = pd.read_csv(csv_path)
+    except Exception:
+        try:
+            # Retry with forgiving parser (handles extra commas, bad quotes)
+            with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
+                text = f.read().replace(", ", "; ")  # prevent comma splitting in names
+            df = pd.read_csv(io.StringIO(text), engine="python", sep=",", on_bad_lines="skip")
+        except Exception as e:
+            raise ValueError(f"Unable to parse the uploaded CSV file. Please check formatting.\n\n{e}")
+
+    # Validate columns
+    required_cols = {"faculty_id", "name", "desired_nights", "requested_dates"}
+    if not required_cols.issubset(df.columns):
+        raise ValueError(f"Missing required columns: {required_cols - set(df.columns)}")
+
     opt = MoonlighterScheduleOptimizer(df, night_slots=night_slots)
     return opt.optimize(strategy=strategy)
