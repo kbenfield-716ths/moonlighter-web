@@ -1,82 +1,115 @@
+/* ===== Base Layout ===== */
 body {
-  font-family: system-ui, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
   background: #f9fafb;
-  color: #222;
   margin: 0;
-  padding: 2rem;
+  padding: 0;
+  color: #1e293b;
 }
 
 .container {
   max-width: 900px;
-  margin: auto;
-  background: white;
+  margin: 2rem auto;
   padding: 2rem;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
 }
 
+/* ===== Header ===== */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.header h1 {
+  font-weight: 700;
+  color: #2563eb;
+  margin: 0;
 }
 
 .status {
-  font-weight: 600;
+  font-weight: 500;
   padding: 0.25rem 0.75rem;
-  border-radius: 8px;
-  background: #fef3c7;
-  color: #92400e;
+  border-radius: 0.5rem;
 }
 
 .status.ready {
-  background: #dcfce7;
+  background-color: #dcfce7;
   color: #166534;
 }
 
+.status.not-ready {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+/* ===== Controls ===== */
 .controls {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
   align-items: center;
-  margin: 1rem 0;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .upload-btn {
   background: #2563eb;
-  color: #fff;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
   cursor: pointer;
-  font-weight: 500;
-  transition: background 0.2s ease;
-}
-.upload-btn:hover {
-  background: #1e40af;
+  transition: 0.2s;
 }
 
-select, input[type=number] {
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid #ddd;
+.upload-btn:hover {
+  background: #1d4ed8;
+}
+
+.file-name {
+  font-style: italic;
+  color: #475569;
 }
 
 button {
-  background-color: #2563eb;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
   padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
   cursor: pointer;
-  font-size: 1rem;
+  font-weight: 600;
 }
-button:hover {
-  background-color: #1e40af;
-}
+
 button:disabled {
-  background: #93c5fd;
+  opacity: 0.5;
   cursor: not-allowed;
+}
+
+button.secondary {
+  background: #e2e8f0;
+}
+
+button.secondary:hover {
+  background: #cbd5e1;
+}
+
+button:not(.secondary) {
+  background: #2563eb;
+  color: white;
+}
+
+button:not(.secondary):hover {
+  background: #1e40af;
+}
+
+/* ===== Results and Table ===== */
+.results h2 {
+  margin-top: 1.5rem;
+  border-top: 2px solid #e2e8f0;
+  padding-top: 1rem;
 }
 
 table {
@@ -84,53 +117,77 @@ table {
   border-collapse: collapse;
   margin-top: 1rem;
 }
-th, td {
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
+
+table th {
+  background: #f1f5f9;
   text-align: left;
+  padding: 0.5rem;
+  border-bottom: 2px solid #e2e8f0;
 }
 
-canvas {
-  margin-top: 2rem;
-  width: 100% !important;
-  height: 400px !important;
+table td {
+  padding: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
 }
+
 .error-box {
   background: #fee2e2;
   color: #991b1b;
   padding: 1rem;
-  border-radius: 8px;
-  margin-top: 1rem;
-  white-space: pre-wrap;
-  font-family: monospace;
+  border-radius: 0.5rem;
+  border: 1px solid #fecaca;
 }
+
+/* ===== Calendar Styling ===== */
 .calendar {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1.5em;
-}
-
-.calendar th, .calendar td {
-  border: 1px solid #ccc;
-  width: 14.28%;
-  vertical-align: top;
-  text-align: left;
-  height: 100px;
-  padding: 4px;
+  margin-top: 1rem;
+  margin-bottom: 2rem;
+  table-layout: fixed;
+  font-size: 0.9rem;
 }
 
 .calendar th {
-  background-color: #f0f4ff;
+  background: #f1f5f9;
+  color: #1e3a8a;
+  padding: 0.5rem;
   text-align: center;
   font-weight: 600;
+  border: 1px solid #e2e8f0;
+}
+
+.calendar td {
+  height: 100px;
+  vertical-align: top;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  padding: 0.25rem;
+  transition: background-color 0.2s;
+}
+
+.calendar td:hover {
+  background: #eff6ff;
 }
 
 .day-content {
-  font-size: 0.85em;
+  padding: 0.25rem;
 }
 
 .day-content strong {
-  display: block;
-  color: #2563eb;
-  margin-bottom: 4px;
+  color: #1e3a8a;
+  font-weight: 600;
+}
+
+/* Shade weekends */
+.calendar td:nth-child(1),
+.calendar td:nth-child(7) {
+  background: #f8fafc;
+}
+
+/* ===== Chart ===== */
+#coverageChart {
+  margin-top: 2rem;
+  width: 100%;
+  height: 300px;
 }
