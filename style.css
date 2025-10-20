@@ -95,3 +95,12 @@ canvas {
   width: 100% !important;
   height: 400px !important;
 }
+.error-box {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-top: 1rem;
+  white-space: pre-wrap;
+  font-family: monospace;
+}
