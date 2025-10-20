@@ -44,6 +44,34 @@
   </div>
 
   <script type="module">
+    runBtn.onclick = async () => {
+  const file = document.getElementById("csvFile").files[0];
+  if (!file) { alert("Please upload a CSV first."); return; }
+
+  const csvText = await file.text();
+  pyodide.FS.writeFile("moonlighter_template.csv", csvText);
+
+  outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
+  const strategy = strategySel.value;
+  const slots = parseInt(slotsInput.value || "1", 10);
+
+  try {
+    const result = await pyodide.runPythonAsync(`
+from run_moonlighter import run_optimizer
+import json
+output = run_optimizer('moonlighter_template.csv', night_slots=${slots}, strategy='${strategy}')
+json.dumps(output)
+    `);
+    const data = JSON.parse(result);
+    renderResults(data);
+  } catch (err) {
+    outputDiv.innerHTML = `
+      <div class="error-box">
+        ⚠️ <strong>Could not process CSV:</strong><br>
+        <pre>${err}</pre>
+      </div>`;
+  }
+};
     const runBtn = document.getElementById("runBtn");
     const outputDiv = document.getElementById("output");
     const strategySel = document.getElementById("strategy");
