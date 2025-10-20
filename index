@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌙 Moonlighter Optimizer</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h1>🌙 Moonlighter Schedule Optimizer</h1>
+    <p>Upload your <code>moonlighter_template.csv</code> file, then click Run to generate results.</p>
+    <input type="file" id="csvFile" accept=".csv" />
+    <button id="runBtn">Run Optimizer</button>
+
+    <div id="output" class="results"></div>
+    <canvas id="coverageChart"></canvas>
+  </div>
+
+  <script type="module">
+    const runBtn = document.getElementById('runBtn');
+    const outputDiv = document.getElementById('output');
+    let pyodide;
+
+    async function initPyodide() {
+      outputDiv.innerHTML = '<p>Loading Python environment... please wait.</p>';
+      pyodide = await loadPyodide();
+      await pyodide.loadPackage(['pandas', 'micropip']);
+
+      // Load Python scripts
+      const optimizerPy = await fetch('moonlighter_optimizer.py').then(r => r.text());
+      const runnerPy = await fetch('run_moonlighter.py').then(r => r.text());
+      pyodide.FS.writeFile('moonlighter_optimizer.py', optimizerPy);
+      pyodide.FS.writeFile('run_moonlighter.py', runnerPy);
+
+      outputDiv.innerHTML = '<p>Environment ready. Upload CSV and click Run.</p>';
+    }
+    initPyodide();
+
+    runBtn.onclick = async () => {
+      const file = document.getElementById('csvFile').files[0];
+      if (!file) return alert('Please upload a CSV first.');
+
+      const csvText = await file.text();
+      pyodide.FS.writeFile('moonlighter_template.csv', csvText);
+
+      outputDiv.innerHTML = '<p>Running optimization... please wait.</p>';
+      const result = await pyodide.runPythonAsync(`
+from run_moonlighter import run_optimizer
+import json
+output = run_optimizer('moonlighter_template.csv')
+json.dumps(output)
+      `);
+
+      const data = JSON.parse(result);
+      renderResults(data);
+    };
+
+    function renderResults(data) {
+      const { metrics, summary } = data;
+
+      outputDiv.innerHTML = `
+        <h2>Results</h2>
+        <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
+        <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
+        <table>
+          <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
+          ${summary.map(s=>`<tr><td>${s.name}</td><td>${s.desired}</td><td>${s.assigned}</td><td>${s.fulfillment}</td></tr>`).join('')}
+        </table>
+      `;
+
+      new Chart(document.getElementById('coverageChart'), {
+        type: 'bar',
+        data: {
+          labels: summary.map(s => s.name),
+          datasets: [{
+            label: 'Fulfillment %',
+            data: summary.map(s => s.fulfillment),
+            backgroundColor: 'rgba(37, 99, 235, 0.7)'
+          }]
+        },
+        options: { scales: { y: { beginAtZero: true, max: 120 } } }
+      });
+    }
+  </script>
+</body>
+</html>
+
+/* === style.css === */
+/* Copy this into a separate file named style.css */
+body {
+  font-family: system-ui, sans-serif;
+  background: #f9fafb;
+  color: #222;
+  margin: 0;
+  padding: 2rem;
+}
+.container {
+  max-width: 900px;
+  margin: auto;
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+input[type=file] {
+  margin-top: 1rem;
+}
+button {
+  background-color: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+button:hover {
+  background-color: #1e40af;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+th, td {
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  text-align: left;
+}
+canvas {
+  margin-top: 2rem;
+  width: 100% !important;
+  height: 400px !important;
+}
