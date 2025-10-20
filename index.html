@@ -43,122 +43,109 @@
     <canvas id="coverageChart"></canvas>
   </div>
 
+  <!-- All scripts placed AFTER HTML elements -->
   <script type="module">
-    runBtn.onclick = async () => {
-  const file = document.getElementById("csvFile").files[0];
-  if (!file) { alert("Please upload a CSV first."); return; }
+    // Wait for DOM content to be loaded before accessing elements
+    document.addEventListener("DOMContentLoaded", async () => {
 
-  const csvText = await file.text();
-  pyodide.FS.writeFile("moonlighter_template.csv", csvText);
+      const runBtn = document.getElementById("runBtn");
+      const outputDiv = document.getElementById("output");
+      const strategySel = document.getElementById("strategy");
+      const slotsInput = document.getElementById("slots");
+      const statusIndicator = document.getElementById("pyStatus");
+      let pyodide;
 
-  outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
-  const strategy = strategySel.value;
-  const slots = parseInt(slotsInput.value || "1", 10);
+      // Initialize Pyodide safely
+      async function initPyodide() {
+        statusIndicator.textContent = "🟠 Python: Loading...";
+        outputDiv.innerHTML = "<p>Loading Python environment... please wait.</p>";
 
-  try {
-    const result = await pyodide.runPythonAsync(`
+        pyodide = await loadPyodide();
+        await pyodide.loadPackage(["pandas", "micropip"]);
+
+        // Load Python scripts
+        const optimizerPy = await fetch("moonlighter_optimizer.py").then(r => r.text());
+        const runnerPy = await fetch("run_moonlighter.py").then(r => r.text());
+        pyodide.FS.writeFile("moonlighter_optimizer.py", optimizerPy);
+        pyodide.FS.writeFile("run_moonlighter.py", runnerPy);
+
+        // Update UI
+        statusIndicator.textContent = "🟢 Python: Ready";
+        statusIndicator.classList.replace("not-ready", "ready");
+        outputDiv.innerHTML = "<p>Environment ready. Upload CSV and click Run.</p>";
+        runBtn.disabled = false;
+      }
+
+      initPyodide();
+
+      // Handle click
+      runBtn.onclick = async () => {
+        const file = document.getElementById("csvFile").files[0];
+        if (!file) { alert("Please upload a CSV first."); return; }
+
+        const csvText = await file.text();
+        pyodide.FS.writeFile("moonlighter_template.csv", csvText);
+
+        outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
+        const strategy = strategySel.value;
+        const slots = parseInt(slotsInput.value || "1", 10);
+
+        try {
+          const result = await pyodide.runPythonAsync(`
 from run_moonlighter import run_optimizer
 import json
 output = run_optimizer('moonlighter_template.csv', night_slots=${slots}, strategy='${strategy}')
 json.dumps(output)
-    `);
-    const data = JSON.parse(result);
-    renderResults(data);
-  } catch (err) {
-    outputDiv.innerHTML = `
-      <div class="error-box">
-        ⚠️ <strong>Could not process CSV:</strong><br>
-        <pre>${err}</pre>
-      </div>`;
-  }
-};
-    const runBtn = document.getElementById("runBtn");
-    const outputDiv = document.getElementById("output");
-    const strategySel = document.getElementById("strategy");
-    const slotsInput = document.getElementById("slots");
-    const statusIndicator = document.getElementById("pyStatus");
-    let pyodide;
+          `);
+          const data = JSON.parse(result);
+          renderResults(data);
+        } catch (err) {
+          outputDiv.innerHTML = `
+            <div class="error-box">
+              ⚠️ <strong>Could not process CSV:</strong><br>
+              <pre>${err}</pre>
+            </div>`;
+        }
+      };
 
-    async function initPyodide() {
-      statusIndicator.textContent = "🟠 Python: Loading...";
-      outputDiv.innerHTML = "<p>Loading Python environment... please wait.</p>";
+      // Results rendering
+      function renderResults(data) {
+        const { metrics, summary } = data;
+        const rows = (summary || []).map(s => (
+          `<tr>
+            <td>${s.name || ""}</td>
+            <td>${s.desired ?? ""}</td>
+            <td>${s.assigned ?? ""}</td>
+            <td>${s.fulfillment ?? ""}</td>
+          </tr>`
+        )).join("");
 
-      pyodide = await loadPyodide();
-      await pyodide.loadPackage(["pandas", "micropip"]);
+        outputDiv.innerHTML = `
+          <h2>Results</h2>
+          <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
+          <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
+          <table>
+            <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
+            ${rows}
+          </table>
+        `;
 
-      // Load Python scripts
-      const optimizerPy = await fetch("moonlighter_optimizer.py").then(r => r.text());
-      const runnerPy = await fetch("run_moonlighter.py").then(r => r.text());
-      pyodide.FS.writeFile("moonlighter_optimizer.py", optimizerPy);
-      pyodide.FS.writeFile("run_moonlighter.py", runnerPy);
-
-      // Ready
-      statusIndicator.textContent = "🟢 Python: Ready";
-      statusIndicator.classList.replace("not-ready", "ready");
-      outputDiv.innerHTML = "<p>Environment ready. Upload CSV and click Run.</p>";
-      runBtn.disabled = false;
-    }
-
-    initPyodide();
-
-    runBtn.onclick = async () => {
-      const file = document.getElementById("csvFile").files[0];
-      if (!file) { alert("Please upload a CSV first."); return; }
-
-      const csvText = await file.text();
-      pyodide.FS.writeFile("moonlighter_template.csv", csvText);
-
-      outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
-      const strategy = strategySel.value;
-      const slots = parseInt(slotsInput.value || "1", 10);
-
-      const result = await pyodide.runPythonAsync(`
-from run_moonlighter import run_optimizer
-import json
-output = run_optimizer('moonlighter_template.csv', night_slots=${slots}, strategy='${strategy}')
-json.dumps(output)
-      `);
-
-      const data = JSON.parse(result);
-      renderResults(data);
-    };
-
-    function renderResults(data) {
-      const { metrics, summary } = data;
-      const rows = (summary || []).map(s => (
-        `<tr>
-          <td>${s.name || ""}</td>
-          <td>${s.desired ?? ""}</td>
-          <td>${s.assigned ?? ""}</td>
-          <td>${s.fulfillment ?? ""}</td>
-        </tr>`
-      )).join("");
-
-      outputDiv.innerHTML = `
-        <h2>Results</h2>
-        <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
-        <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
-        <table>
-          <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
-          ${rows}
-        </table>
-      `;
-
-      const ctx = document.getElementById("coverageChart").getContext("2d");
-      if (window._coverageChart) window._coverageChart.destroy();
-      window._coverageChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: (summary || []).map(s => s.name),
-          datasets: [{
-            label: "Fulfillment %",
-            data: (summary || []).map(s => s.fulfillment),
-            backgroundColor: "rgba(37, 99, 235, 0.7)"
-          }]
-        },
-        options: { scales: { y: { beginAtZero: true, max: 120 } } }
-      });
-    }
+        const ctx = document.getElementById("coverageChart").getContext("2d");
+        if (window._coverageChart) window._coverageChart.destroy();
+        window._coverageChart = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: (summary || []).map(s => s.name),
+            datasets: [{
+              label: "Fulfillment %",
+              data: (summary || []).map(s => s.fulfillment),
+              backgroundColor: "rgba(37, 99, 235, 0.7)"
+            }]
+          },
+          options: { scales: { y: { beginAtZero: true, max: 120 } } }
+        });
+      }
+    });
   </script>
 </body>
 </html>
