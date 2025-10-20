@@ -1,27 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang=\"en\">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>🌙 Moonlighter Optimizer</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta charset=\"UTF-8\">
+  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
+  <title>Moonlighter Optimizer</title>
+  <link rel=\"stylesheet\" href=\"style.css\">
+  <script src=\"https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js\"></script>
+  <script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js\"></script>
+  <link rel=\"icon\" href=\"favicon.ico\">
 </head>
 <body>
-  <div class="container">
-    <h1>🌙 IRPA Optimizer</h1>
+  <div class=\"container\">
+    <h1>🌙 Moonlighter Schedule Optimizer</h1>
     <p>Upload your <code>moonlighter_template.csv</code> file, then click Run to generate results.</p>
-    <input type="file" id="csvFile" accept=".csv" />
-    <button id="runBtn">Run Optimizer</button>
+    <div class=\"controls\">
+      <input type=\"file\" id=\"csvFile\" accept=\".csv\">
+      <label>Strategy:
+        <select id=\"strategy\">
+          <option value=\"balanced\" selected>Balanced</option>
+          <option value=\"coverage\">Coverage-first</option>
+          <option value=\"satisfaction\">Satisfaction-first</option>
+        </select>
+      </label>
+      <label>People per night:
+        <input type=\"number\" id=\"slots\" value=\"1\" min=\"1\" step=\"1\">
+      </label>
+      <button id=\"runBtn\">Run Optimizer</button>
+    </div>
 
-    <div id="output" class="results"></div>
-    <canvas id="coverageChart"></canvas>
+    <div id=\"output\" class=\"results\"></div>
+    <canvas id=\"coverageChart\"></canvas>
   </div>
 
-  <script type="module">
+  <script type=\"module\">
     const runBtn = document.getElementById('runBtn');
     const outputDiv = document.getElementById('output');
+    const strategySel = document.getElementById('strategy');
+    const slotsInput = document.getElementById('slots');
     let pyodide;
 
     async function initPyodide() {
@@ -29,7 +44,7 @@
       pyodide = await loadPyodide();
       await pyodide.loadPackage(['pandas', 'micropip']);
 
-      // Load Python scripts
+      // Load Python scripts from this repo
       const optimizerPy = await fetch('moonlighter_optimizer.py').then(r => r.text());
       const runnerPy = await fetch('run_moonlighter.py').then(r => r.text());
       pyodide.FS.writeFile('moonlighter_optimizer.py', optimizerPy);
@@ -41,16 +56,19 @@
 
     runBtn.onclick = async () => {
       const file = document.getElementById('csvFile').files[0];
-      if (!file) return alert('Please upload a CSV first.');
+      if (!file) { alert('Please upload a CSV first.'); return; }
 
       const csvText = await file.text();
       pyodide.FS.writeFile('moonlighter_template.csv', csvText);
 
       outputDiv.innerHTML = '<p>Running optimization... please wait.</p>';
+      const strategy = strategySel.value;
+      const slots = parseInt(slotsInput.value || '1', 10);
+
       const result = await pyodide.runPythonAsync(`
 from run_moonlighter import run_optimizer
 import json
-output = run_optimizer('moonlighter_template.csv')
+output = run_optimizer('moonlighter_template.csv', night_slots=${'${slots}'}, strategy='${'${strategy}'}')
 json.dumps(output)
       `);
 
@@ -61,25 +79,33 @@ json.dumps(output)
     function renderResults(data) {
       const { metrics, summary } = data;
 
+      const rows = (summary || []).map(s => (
+        '<tr>' +
+        '<td>' + (s.name || '') + '</td>' +
+        '<td>' + (s.desired ?? '') + '</td>' +
+        '<td>' + (s.assigned ?? '') + '</td>' +
+        '<td>' + (s.fulfillment ?? '') + '</td>' +
+        '</tr>'
+      )).join('');
+
       outputDiv.innerHTML = `
         <h2>Results</h2>
         <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
         <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
         <table>
           <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
-          ${summary.map(s=>`<tr><td>${s.name}</td><td>${s.desired}</td><td>${s.assigned}</td><td>${s.fulfillment}</td></tr>`).join('')}
+          ${rows}
         </table>
       `;
 
-      new Chart(document.getElementById('coverageChart'), {
+      const ctx = document.getElementById('coverageChart').getContext('2d');
+      // Destroy any existing chart instance tied to this canvas
+      if (window._coverageChart) { window._coverageChart.destroy(); }
+      window._coverageChart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: summary.map(s => s.name),
-          datasets: [{
-            label: 'Fulfillment %',
-            data: summary.map(s => s.fulfillment),
-            backgroundColor: 'rgba(37, 99, 235, 0.7)'
-          }]
+          labels: (summary || []).map(s => s.name),
+          datasets: [{ label: 'Fulfillment %', data: (summary || []).map(s => s.fulfillment) }]
         },
         options: { scales: { y: { beginAtZero: true, max: 120 } } }
       });
@@ -87,4 +113,3 @@ json.dumps(output)
   </script>
 </body>
 </html>
-
