@@ -77,7 +77,8 @@
       if (!file) { alert("Please upload a CSV first."); return; }
 
       const csvText = await file.text();
-      pyodide.FS.writeFile("moonlighter_template.csv", csvText);
+      const encoder = new TextEncoder();
+      pyodide.FS.writeFile("moonlighter_template.csv", encoder.encode(csvText));
 
       outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
       const strategy = strategySel.value;
