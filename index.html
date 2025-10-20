@@ -124,13 +124,15 @@ json.dumps(output)
 
       const ctx = document.getElementById("coverageChart").getContext("2d");
       if (window._coverageChart) window._coverageChart.destroy();
+
+      // ✅ FIXED Chart.js config
       window._coverageChart = new Chart(ctx, {
         type: "bar",
-         {
+        data: {
           labels: (summary || []).map(s => s.name),
           datasets: [{
             label: "Fulfillment %",
-             (summary || []).map(s => s.fulfillment),
+            data: (summary || []).map(s => s.fulfillment),
             backgroundColor: "rgba(37, 99, 235, 0.7)"
           }]
         },
