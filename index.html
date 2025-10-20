@@ -1,74 +1,93 @@
 <!DOCTYPE html>
-<html lang=\"en\">
+<html lang="en">
 <head>
-  <meta charset=\"UTF-8\">
-  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-  <title>Moonlighter Optimizer</title>
-  <link rel=\"stylesheet\" href=\"style.css\">
-  <script src=\"https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js\"></script>
-  <script src=\"https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js\"></script>
-  <link rel=\"icon\" href=\"favicon.ico\">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🌙 IRPA Optimizer by Platypus Inc.</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="icon" href="favicon.ico" />
 </head>
 <body>
-  <div class=\"container\">
-    <h1>🌙 IRPA Optimizer by platypus inc.</h1>
-    <p>Upload your <code>moonlighter_template.csv</code> file, then click Run to generate results.</p>
-    <div class=\"controls\">
-      <input type=\"file\" id=\"csvFile\" accept=\".csv\">
+  <div class="container">
+    <header class="header">
+      <h1>🌙 IRPA Optimizer</h1>
+      <div id="pyStatus" class="status not-ready">🟠 Python: Not Ready</div>
+    </header>
+
+    <p>Upload your <code>moonlighter_template.csv</code> file, then click <strong>Run Optimizer</strong> once Python is ready.</p>
+
+    <div class="controls">
+      <label class="upload-btn">
+        📁 Upload CSV
+        <input type="file" id="csvFile" accept=".csv" hidden>
+      </label>
+
       <label>Strategy:
-        <select id=\"strategy\">
-          <option value=\"balanced\" selected>Balanced</option>
-          <option value=\"coverage\">Coverage-first</option>
-          <option value=\"satisfaction\">Satisfaction-first</option>
+        <select id="strategy">
+          <option value="balanced" selected>Balanced</option>
+          <option value="coverage">Coverage-first</option>
+          <option value="satisfaction">Satisfaction-first</option>
         </select>
       </label>
+
       <label>People per night:
-        <input type=\"number\" id=\"slots\" value=\"1\" min=\"1\" step=\"1\">
+        <input type="number" id="slots" value="1" min="1" step="1">
       </label>
-      <button id=\"runBtn\">Run Optimizer</button>
+
+      <button id="runBtn" disabled>Run Optimizer</button>
     </div>
 
-    <div id=\"output\" class=\"results\"></div>
-    <canvas id=\"coverageChart\"></canvas>
+    <div id="output" class="results"></div>
+    <canvas id="coverageChart"></canvas>
   </div>
 
-  <script type=\"module\">
-    const runBtn = document.getElementById('runBtn');
-    const outputDiv = document.getElementById('output');
-    const strategySel = document.getElementById('strategy');
-    const slotsInput = document.getElementById('slots');
+  <script type="module">
+    const runBtn = document.getElementById("runBtn");
+    const outputDiv = document.getElementById("output");
+    const strategySel = document.getElementById("strategy");
+    const slotsInput = document.getElementById("slots");
+    const statusIndicator = document.getElementById("pyStatus");
     let pyodide;
 
     async function initPyodide() {
-      outputDiv.innerHTML = '<p>Loading Python environment... please wait.</p>';
+      statusIndicator.textContent = "🟠 Python: Loading...";
+      outputDiv.innerHTML = "<p>Loading Python environment... please wait.</p>";
+
       pyodide = await loadPyodide();
-      await pyodide.loadPackage(['pandas', 'micropip']);
+      await pyodide.loadPackage(["pandas", "micropip"]);
 
-      // Load Python scripts from this repo
-      const optimizerPy = await fetch('moonlighter_optimizer.py').then(r => r.text());
-      const runnerPy = await fetch('run_moonlighter.py').then(r => r.text());
-      pyodide.FS.writeFile('moonlighter_optimizer.py', optimizerPy);
-      pyodide.FS.writeFile('run_moonlighter.py', runnerPy);
+      // Load Python scripts
+      const optimizerPy = await fetch("moonlighter_optimizer.py").then(r => r.text());
+      const runnerPy = await fetch("run_moonlighter.py").then(r => r.text());
+      pyodide.FS.writeFile("moonlighter_optimizer.py", optimizerPy);
+      pyodide.FS.writeFile("run_moonlighter.py", runnerPy);
 
-      outputDiv.innerHTML = '<p>Environment ready. Upload CSV and click Run.</p>';
+      // Ready
+      statusIndicator.textContent = "🟢 Python: Ready";
+      statusIndicator.classList.replace("not-ready", "ready");
+      outputDiv.innerHTML = "<p>Environment ready. Upload CSV and click Run.</p>";
+      runBtn.disabled = false;
     }
+
     initPyodide();
 
     runBtn.onclick = async () => {
-      const file = document.getElementById('csvFile').files[0];
-      if (!file) { alert('Please upload a CSV first.'); return; }
+      const file = document.getElementById("csvFile").files[0];
+      if (!file) { alert("Please upload a CSV first."); return; }
 
       const csvText = await file.text();
-      pyodide.FS.writeFile('moonlighter_template.csv', csvText);
+      pyodide.FS.writeFile("moonlighter_template.csv", csvText);
 
-      outputDiv.innerHTML = '<p>Running optimization... please wait.</p>';
+      outputDiv.innerHTML = "<p>Running optimization... please wait.</p>";
       const strategy = strategySel.value;
-      const slots = parseInt(slotsInput.value || '1', 10);
+      const slots = parseInt(slotsInput.value || "1", 10);
 
       const result = await pyodide.runPythonAsync(`
 from run_moonlighter import run_optimizer
 import json
-output = run_optimizer('moonlighter_template.csv', night_slots=${'${slots}'}, strategy='${'${strategy}'}')
+output = run_optimizer('moonlighter_template.csv', night_slots=${slots}, strategy='${strategy}')
 json.dumps(output)
       `);
 
@@ -78,15 +97,14 @@ json.dumps(output)
 
     function renderResults(data) {
       const { metrics, summary } = data;
-
       const rows = (summary || []).map(s => (
-        '<tr>' +
-        '<td>' + (s.name || '') + '</td>' +
-        '<td>' + (s.desired ?? '') + '</td>' +
-        '<td>' + (s.assigned ?? '') + '</td>' +
-        '<td>' + (s.fulfillment ?? '') + '</td>' +
-        '</tr>'
-      )).join('');
+        `<tr>
+          <td>${s.name || ""}</td>
+          <td>${s.desired ?? ""}</td>
+          <td>${s.assigned ?? ""}</td>
+          <td>${s.fulfillment ?? ""}</td>
+        </tr>`
+      )).join("");
 
       outputDiv.innerHTML = `
         <h2>Results</h2>
@@ -98,14 +116,17 @@ json.dumps(output)
         </table>
       `;
 
-      const ctx = document.getElementById('coverageChart').getContext('2d');
-      // Destroy any existing chart instance tied to this canvas
-      if (window._coverageChart) { window._coverageChart.destroy(); }
+      const ctx = document.getElementById("coverageChart").getContext("2d");
+      if (window._coverageChart) window._coverageChart.destroy();
       window._coverageChart = new Chart(ctx, {
-        type: 'bar',
+        type: "bar",
         data: {
           labels: (summary || []).map(s => s.name),
-          datasets: [{ label: 'Fulfillment %', data: (summary || []).map(s => s.fulfillment) }]
+          datasets: [{
+            label: "Fulfillment %",
+            data: (summary || []).map(s => s.fulfillment),
+            backgroundColor: "rgba(37, 99, 235, 0.7)"
+          }]
         },
         options: { scales: { y: { beginAtZero: true, max: 120 } } }
       });
