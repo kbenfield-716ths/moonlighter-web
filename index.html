@@ -23,6 +23,7 @@
         📁 Upload CSV
         <input type="file" id="csvFile" accept=".csv" hidden>
       </label>
+      <span id="fileName" class="file-name"></span>
 
       <label>Strategy:
         <select id="strategy">
@@ -37,6 +38,7 @@
       </label>
 
       <button id="runBtn" disabled>Run Optimizer</button>
+      <button id="resetBtn" class="secondary">Reset</button>
     </div>
 
     <div id="output" class="results"></div>
@@ -45,12 +47,16 @@
 
   <script type="module">
     const runBtn = document.getElementById("runBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    const fileInput = document.getElementById("csvFile");
+    const fileNameDisplay = document.getElementById("fileName");
     const outputDiv = document.getElementById("output");
     const strategySel = document.getElementById("strategy");
     const slotsInput = document.getElementById("slots");
     const statusIndicator = document.getElementById("pyStatus");
     let pyodide;
 
+    // ===== PYODIDE INITIALIZATION =====
     async function initPyodide() {
       statusIndicator.textContent = "🟠 Python: Loading...";
       outputDiv.innerHTML = "<p>Loading Python environment... please wait.</p>";
@@ -60,7 +66,6 @@
 
       const optimizerPy = await fetch("moonlighter_optimizer.py").then(r => r.text());
       const runnerPy = await fetch("run_moonlighter.py").then(r => r.text());
-
       pyodide.FS.writeFile("moonlighter_optimizer.py", optimizerPy);
       pyodide.FS.writeFile("run_moonlighter.py", runnerPy);
 
@@ -69,11 +74,21 @@
       outputDiv.innerHTML = "<p>Environment ready. Upload CSV and click Run.</p>";
       runBtn.disabled = false;
     }
-
     initPyodide();
 
+    // ===== FILE INPUT HANDLER =====
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        fileNameDisplay.textContent = `📄 Loaded: ${file.name}`;
+      } else {
+        fileNameDisplay.textContent = "";
+      }
+    });
+
+    // ===== RUN OPTIMIZER =====
     runBtn.addEventListener("click", async () => {
-      const file = document.getElementById("csvFile").files[0];
+      const file = fileInput.files[0];
       if (!file) { alert("Please upload a CSV first."); return; }
 
       const csvText = await file.text();
@@ -102,16 +117,28 @@ json.dumps(output)
       }
     });
 
+    // ===== RESET BUTTON =====
+    resetBtn.addEventListener("click", () => {
+      fileInput.value = "";
+      fileNameDisplay.textContent = "";
+      outputDiv.innerHTML = "";
+      if (window._coverageChart) {
+        window._coverageChart.destroy();
+        window._coverageChart = null;
+      }
+      statusIndicator.textContent = "🟢 Python: Ready";
+    });
+
+    // ===== RENDER RESULTS =====
     function renderResults(data) {
       const { metrics, summary } = data;
-      const rows = (summary || []).map(s => (
-        `<tr>
+      const rows = (summary || []).map(s => `
+        <tr>
           <td>${s.name || ""}</td>
           <td>${s.desired ?? ""}</td>
           <td>${s.assigned ?? ""}</td>
           <td>${s.fulfillment ?? ""}</td>
-        </tr>`
-      )).join("");
+        </tr>`).join("");
 
       outputDiv.innerHTML = `
         <h2>Results</h2>
@@ -126,7 +153,6 @@ json.dumps(output)
       const ctx = document.getElementById("coverageChart").getContext("2d");
       if (window._coverageChart) window._coverageChart.destroy();
 
-      // ✅ FIXED Chart.js config
       window._coverageChart = new Chart(ctx, {
         type: "bar",
         data: {
@@ -142,4 +168,5 @@ json.dumps(output)
     }
   </script>
 </body>
+</html>
 </html>
