@@ -165,6 +165,16 @@ json.dumps(output)
         },
         options: { scales: { y: { beginAtZero: true, max: 120 } } }
       });
+      // ===== RENDER CALENDAR =====
+const schedule = data.schedule || {};
+if (Object.keys(schedule).length) {
+  let calendarHTML = `<h3>📅 Nightly Schedule</h3><table><tr><th>Date</th><th>Assigned Faculty</th></tr>`;
+  for (const [date, assigned] of Object.entries(schedule)) {
+    calendarHTML += `<tr><td>${date}</td><td>${assigned.join(", ")}</td></tr>`;
+  }
+  calendarHTML += "</table>";
+  outputDiv.innerHTML += calendarHTML;
+}
     }
   </script>
 </body>
