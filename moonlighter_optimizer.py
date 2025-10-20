@@ -203,6 +203,7 @@ def run_from_csv(csv_path: str, night_slots: int = 1, strategy: str = "balanced"
                 .str.strip()                             # remove spaces
                 .str.replace('\ufeff', '', regex=True)   # remove BOM
                 .str.lower()                             # normalize case
+            )
         except Exception as e:
             raise ValueError(f"Unable to parse the uploaded CSV file. Please check formatting.\n\n{e}")
 
