@@ -196,3 +196,21 @@ if __name__ == '__main__':
             )
             
             opt.print_summary(res)
+
+# Add this at the bottom of run_moonlighter.py
+from moonlighter_optimizer import MoonlighterOptimizer
+
+def run_optimizer(csv_path):
+    optimizer = MoonlighterOptimizer(csv_path)
+    results = optimizer.optimize_schedule()
+    # Return as JSON-serializable dict
+    return {
+        "metrics": results["metrics"],
+        "summary": results["summary"],
+        "schedule": results["schedule"]
+    }
+
+if __name__ == "__main__":
+    import json
+    import sys
+    print(json.dumps(run_optimizer(sys.argv[1])))
