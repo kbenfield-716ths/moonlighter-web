@@ -130,50 +130,93 @@ json.dumps(output)
     });
 
     // ===== RENDER RESULTS =====
-    function renderResults(data) {
-      const { metrics, summary } = data;
-      const rows = (summary || []).map(s => `
-        <tr>
-          <td>${s.name || ""}</td>
-          <td>${s.desired ?? ""}</td>
-          <td>${s.assigned ?? ""}</td>
-          <td>${s.fulfillment ?? ""}</td>
-        </tr>`).join("");
+ function renderResults(data) {
+  const { metrics, summary, schedule } = data;
 
-      outputDiv.innerHTML = `
-        <h2>Results</h2>
-        <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
-        <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
-        <table>
-          <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
-          ${rows}
-        </table>
-      `;
+  // ----- Summary table -----
+  const rows = (summary || []).map(s => `
+    <tr>
+      <td>${s.name || ""}</td>
+      <td>${s.desired ?? ""}</td>
+      <td>${s.assigned ?? ""}</td>
+      <td>${s.fulfillment ?? ""}</td>
+    </tr>`).join("");
 
-      const ctx = document.getElementById("coverageChart").getContext("2d");
-      if (window._coverageChart) window._coverageChart.destroy();
+  outputDiv.innerHTML = `
+    <h2>Results</h2>
+    <p><strong>Coverage:</strong> ${metrics.coverage_rate}%</p>
+    <p><strong>Average Satisfaction:</strong> ${metrics.avg_satisfaction}%</p>
+    <table>
+      <tr><th>Faculty</th><th>Desired</th><th>Assigned</th><th>Fulfillment (%)</th></tr>
+      ${rows}
+    </table>
+  `;
 
-      window._coverageChart = new Chart(ctx, {
-        type: "bar",
-        data: {
-          labels: (summary || []).map(s => s.name),
-          datasets: [{
-            label: "Fulfillment %",
-            data: (summary || []).map(s => s.fulfillment),
-            backgroundColor: "rgba(37, 99, 235, 0.7)"
-          }]
-        },
-        options: { scales: { y: { beginAtZero: true, max: 120 } } }
-      });
-      // ===== RENDER CALENDAR =====
-const schedule = data.schedule || {};
-if (Object.keys(schedule).length) {
-  let calendarHTML = `<h3>📅 Nightly Schedule</h3><table><tr><th>Date</th><th>Assigned Faculty</th></tr>`;
-  for (const [date, assigned] of Object.entries(schedule)) {
-    calendarHTML += `<tr><td>${date}</td><td>${assigned.join(", ")}</td></tr>`;
+  // ----- Chart -----
+  const ctx = document.getElementById("coverageChart").getContext("2d");
+  if (window._coverageChart) window._coverageChart.destroy();
+
+  window._coverageChart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: (summary || []).map(s => s.name),
+      datasets: [{
+        label: "Fulfillment %",
+        data: (summary || []).map(s => s.fulfillment),
+        backgroundColor: "rgba(37, 99, 235, 0.7)"
+      }]
+    },
+    options: { scales: { y: { beginAtZero: true, max: 120 } } }
+  });
+
+  // ----- Convert faculty IDs to names -----
+  const idToName = {};
+  (summary || []).forEach(s => {
+    if (s.id && s.name) idToName[s.id] = s.name;
+  });
+
+  // Map schedule IDs -> names
+  const scheduleWithNames = {};
+  for (const [date, fids] of Object.entries(schedule || {})) {
+    scheduleWithNames[date] = fids.map(fid => idToName[fid] || fid);
   }
-  calendarHTML += "</table>";
-  outputDiv.innerHTML += calendarHTML;
+
+  // ----- Create real calendar grid -----
+  const calendarHTML = buildCalendar(scheduleWithNames, 2025, 11); // November 2025
+  outputDiv.innerHTML += `<h3>📅 November Schedule</h3>${calendarHTML}`;
+}
+    function buildCalendar(schedule, year, month) {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const weeks = [];
+  let week = new Array(7).fill(null);
+
+  // Fill leading blanks
+  for (let i = 0; i < firstDay.getDay(); i++) week[i] = "";
+
+  // Fill days
+  for (let day = 1; day <= lastDay.getDate(); day++) {
+    const dateStr = `${year}-${String(month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const names = schedule[dateStr] ? schedule[dateStr].join(", ") : "";
+    const cellHTML = names ? `<div class="day-content"><strong>${day}</strong><br>${names}</div>`
+                           : `<div class="day-content"><strong>${day}</strong></div>`;
+
+    week[firstDay.getDay()] = cellHTML;
+    firstDay.setDate(firstDay.getDate() + 1);
+
+    if (firstDay.getDay() === 0 || day === lastDay.getDate()) {
+      weeks.push(week);
+      week = new Array(7).fill(null);
+    }
+  }
+
+  // Build table HTML
+  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  let html = `<table class="calendar">
+    <tr>${weekdays.map(d => `<th>${d}</th>`).join("")}</tr>
+    ${weeks.map(w => `<tr>${w.map(c => `<td>${c || ""}</td>`).join("")}</tr>`).join("")}
+  </table>`;
+  return html;
 }
     }
   </script>
