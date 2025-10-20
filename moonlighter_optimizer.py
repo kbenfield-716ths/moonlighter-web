@@ -189,28 +189,30 @@ import pandas as pd
 def run_from_csv(csv_path: str, night_slots: int = 1, strategy: str = "balanced") -> dict:
     """Read and process the input CSV file safely."""
     try:
-        # Try reading normally first
-        df = pd.read_csv(csv_path)
+        # Try reading with BOM-safe encoding first
+        df = pd.read_csv(csv_path, encoding="utf-8-sig")
     except Exception:
         try:
             # Retry with forgiving parser (handles extra commas, bad quotes)
             with open(csv_path, "r", encoding="utf-8", errors="ignore") as f:
                 text = f.read().replace(", ", "; ")  # prevent comma splitting in names
-            df = pd.read_csv(io.StringIO(text), engine="python", sep=",", on_bad_lines="skip", encoding='utf-8-sig')
-            # Normalize column names to prevent hidden BOM/space issues
-            df.columns = (
-                df.columns
-                .str.strip()                             # remove spaces
-                .str.replace('\ufeff', '', regex=True)   # remove BOM
-                .str.lower()                             # normalize case
-            )
+            df = pd.read_csv(io.StringIO(text), engine="python", sep=",", on_bad_lines="skip", encoding="utf-8-sig")
         except Exception as e:
             raise ValueError(f"Unable to parse the uploaded CSV file. Please check formatting.\n\n{e}")
 
-    # Validate columns
+    # ✅ Always normalize column names (regardless of which read succeeded)
+    df.columns = (
+        df.columns
+        .str.strip()                             # remove spaces
+        .str.replace('\ufeff', '', regex=True)   # remove BOM
+        .str.lower()                             # normalize case
+    )
+
+    # ✅ Validate columns
     required_cols = {"faculty_id", "name", "desired_nights", "requested_dates"}
-    if not required_cols.issubset(df.columns):
-        raise ValueError(f"Missing required columns: {required_cols - set(df.columns)}")
+    missing = required_cols - set(df.columns)
+    if missing:
+        raise ValueError(f"Missing required columns after normalization: {missing}")
 
     opt = MoonlighterScheduleOptimizer(df, night_slots=night_slots)
     return opt.optimize(strategy=strategy)
